@@ -28,25 +28,28 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService{
+public class UserServiceImpl implements UserService {
+
     private final UserRepository userRepo;
     private final RoleRepository roleRepo;
     private final PasswordEncoder passwordEncoder;
+
     @Autowired
     private AuthenticationManager authenticationManager;
-    @Autowired private JwtUtil jwtUtil;
 
-
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     public ResponseEntity<RegisterResponse> register(RegisterRequest request) {
-//        check if the user already exists
-        if(userRepo.findByEmail(request.getEmail()).isPresent()){
+
+        if (userRepo.findByEmail(request.getEmail()).isPresent()) {
             throw new RuntimeException("This user already exists");
         }
         if (!request.getPassword().equals(request.getConfirmPass())) {
             throw new RuntimeException("Passwords do not match");
         }
+
         Role role = roleRepo.findByName("USER")
                 .orElseThrow(() -> new RuntimeException("Role not found"));
 
@@ -55,20 +58,18 @@ public class UserServiceImpl implements UserService{
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(role);
-        user.setIsActive(false);
+        user.setIsActive(false); // must be verified before login
         userRepo.save(user);
 
         RegisterResponse response = new RegisterResponse();
-        response.setMessage("Registration successful! OTP sent to your email");
-
+        response.setMessage("Registration successful! Please verify your email first.");
         response.setUserName(UserMapper.toDto(user));
-
-
         return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<?> login(AuthRequest request, BindingResult bindingResult) {
+
         if (bindingResult.hasErrors()) {
             return ResponseEntity.badRequest().body(
                     bindingResult.getFieldErrors()
@@ -78,36 +79,30 @@ public class UserServiceImpl implements UserService{
             );
         }
 
-        User vuser = userRepo.findByEmail(request.getUsername())
-                .or(() -> userRepo.findByName(request.getUsername()))
+        User user = userRepo.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!vuser.getIsActive()) {
-            throw new RuntimeException("Your email is not verified. Please check your inbox.");
+        if (!user.getIsActive()) {
+            throw new RuntimeException("User is not active. Verify your email first.");
         }
 
         try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(vuser.getEmail(), request.getPassword())
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(user.getEmail(), request.getPassword())
             );
 
-            UserDetails user = (UserDetails) authentication.getPrincipal();
-
-            // generate tokens
-            String accessToken = jwtUtil.generateToken(user.getUsername());
-            String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
+            String accessToken = jwtUtil.generateToken(user.getEmail());
+            String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 
             return ResponseEntity.ok(Map.of(
                     "accessToken", accessToken,
                     "refreshToken", refreshToken
             ));
-
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid username or password");
+                    .body("Invalid email or password");
         }
     }
-
 
     @Override
     public ResponseEntity<?> refreshUserToken(Map<String, String> request) {

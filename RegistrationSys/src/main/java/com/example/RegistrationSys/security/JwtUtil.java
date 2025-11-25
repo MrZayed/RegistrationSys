@@ -33,6 +33,8 @@ public class JwtUtil {
     }
 
     public String extractUsername(String token) {
+        System.out.println("break point ");
+        System.out.println(extractAllClaims(token).getSubject());
         return extractAllClaims(token).getSubject();
     }
 

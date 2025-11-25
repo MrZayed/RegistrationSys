@@ -1,0 +1,19 @@
+# Build
+target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# H2 database files
+*.mv.db
+*.trace.db
+
+# Maven wrapper logs
+.mvn/wrapper/maven-wrapper.jar
