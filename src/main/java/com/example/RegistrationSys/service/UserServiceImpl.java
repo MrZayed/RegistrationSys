@@ -1,5 +1,6 @@
 package com.example.RegistrationSys.service;
 
+import com.example.RegistrationSys.config.AuthConfig;
 import com.example.RegistrationSys.dto.AuthRequest;
 import com.example.RegistrationSys.dto.RegisterRequest;
 import com.example.RegistrationSys.dto.RegisterResponse;
@@ -33,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepo;
     private final RoleRepository roleRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AuthConfig authConfig ;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -48,6 +50,10 @@ public class UserServiceImpl implements UserService {
         }
         if (!request.getPassword().equals(request.getConfirmPass())) {
             throw new RuntimeException("Passwords do not match");
+        }
+        // from properties, you can edit
+        if (!authConfig.getOtp().isViaSMS()) {
+            throw new RuntimeException("Email OTP is disabled");
         }
 
         Role role = roleRepo.findByName("USER")
